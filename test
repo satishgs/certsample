@@ -1,1 +1,2 @@
+openssl pkcs12 -export -out keystore.p12 -inkey keyfile.key -in certfile.crt
 keytool -import -alias "server" -file server_certificate.crt -keystore truststore.jks -storepass [truststore_password]
