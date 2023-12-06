@@ -1,0 +1,77 @@
+import javax.net.ssl.*;
+import java.net.URL;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+import java.security.SecureRandom;
+
+public class SSLGetRequestWithKeystoreAndTruststore {
+
+    public static void main(String[] args) {
+        try {
+            // Load the client keystore
+            KeyStore clientKeyStore = KeyStore.getInstance("PKCS12");
+            try (FileInputStream fis = new FileInputStream("keystore.p12")) {
+                clientKeyStore.load(fis, "keystore_password".toCharArray());
+            }
+
+            // Load the truststore
+            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            try (FileInputStream fis = new FileInputStream("truststore.jks")) {
+                trustStore.load(fis, "truststore_password".toCharArray());
+            }
+
+            // Initialize Key Manager Factory
+            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            kmf.init(clientKeyStore, "keystore_password".toCharArray());
+
+            // Bypass SSL certificate verification
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                    }
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                    }
+                }
+            };
+
+            // Initialize SSL Context
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(kmf.getKeyManagers(), trustAllCerts, new SecureRandom());
+
+            // Set default SSL socket factory and host name verifier
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+
+            // Create URL and open connection
+            URL url = new URL("https://api.example.com/endpoint");
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            // Read the response
+            int responseCode = conn.getResponseCode();
+            System.out.println("Response Code: " + responseCode);
+
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+
+                // Print the response
+                System.out.println(response.toString());
+            }
+
+            conn.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
