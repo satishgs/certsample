@@ -1,0 +1,1 @@
+keytool -import -alias "server" -file server_certificate.crt -keystore truststore.jks -storepass [truststore_password]
